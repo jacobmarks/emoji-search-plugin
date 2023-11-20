@@ -1,0 +1,9 @@
+fiftyone:
+  version: ">=0.23.0"
+name: "@jacobmarks/emoji_search"
+version: "1.0.3"
+description: "Semantically search emojis"
+url: "https://github.com/jacobmarks/emoji-search-plugin"
+operators:
+- search_emojis
+- copy_emoji_to_clipboard
