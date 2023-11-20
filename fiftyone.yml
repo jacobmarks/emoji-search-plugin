@@ -5,5 +5,5 @@ version: "1.0.3"
 description: "Semantically search emojis"
 url: "https://github.com/jacobmarks/emoji-search-plugin"
 operators:
-- search_emojis
-- copy_emoji_to_clipboard
+  - search_emojis
+  - copy_emoji_to_clipboard
