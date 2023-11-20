@@ -47,6 +47,11 @@ fiftyone plugins requirements @jacobmarks/emoji_search --install
 
 ## Operators
 
+### `download_emoji_dataset`
+
+This operator will download the emoji dataset and create a FiftyOne `Dataset`
+from it. You can then use the other operators on this dataset.
+
 ### `search_emojis`
 
 This operator will semantically search for emojis based on the input text. It
@@ -59,4 +64,17 @@ This operator will copy the emoji to the clipboard!
 
 ## Dataset Preperation
 
-The plugin
+This plugin is designed to work with the Emoji Dataset (link to try.fiftyone.ai when available).
+The dataset was constructed as follows:
+
+1. Base64 encoded images of emojis and associated data were downloaded from the
+   [Kaggle Emoji Dataset](https://www.kaggle.com/datasets/subinium/emojiimage-dataset).
+
+2. ESRGAN was used to 10x upscale the images.
+
+3. Captions of the form "A photo of ..." were generated for each emoji using GPT-4.
+
+4. CLIP embeddings were computed for each emoji description, and the embeddings were
+   used to create a vector similarity index.
+
+5. For fun, image attributes such as contrast and saturation were computed for each emoji.
