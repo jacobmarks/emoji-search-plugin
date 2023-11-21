@@ -7,3 +7,4 @@ url: "https://github.com/jacobmarks/emoji-search-plugin"
 operators:
   - search_emojis
   - copy_emoji_to_clipboard
+  - create_emoji_dataset

@@ -9,8 +9,11 @@
 from bson import json_util
 import json
 import numpy as np
+import os
 import pyperclip
 from sentence_transformers.cross_encoder import CrossEncoder
+
+import eta.core.web as etaw
 
 import fiftyone as fo
 
@@ -167,6 +170,109 @@ class CopyEmojiToClipboard(foo.Operator):
         return {"emoji": emoji}
 
 
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith("download_warning"):
+            return value
+    return None
+
+
+def _download_emoji_images():
+    fo_dir = fo.config.default_dataset_dir
+    dataset_dir = os.path.join(fo_dir, "emojis")
+    images_dir = os.path.join(dataset_dir, "images")
+    images_zip_path = os.path.join(dataset_dir, "images.zip")
+    if not os.path.exists(dataset_dir):
+        os.mkdir(dataset_dir)
+        print(f"Downloading images to {dataset_dir}...")
+
+        # Download the file
+        etaw.download_google_drive_file(
+            "1oODj7JMADEzMmco_oP8mdIChXusG1VKG", path=images_zip_path
+        )
+        print("Download complete.")
+
+    if not os.path.exists(images_dir):
+        print(f"Extracting images to {dataset_dir}...")
+        import zipfile
+
+        with zipfile.ZipFile(images_zip_path, "r") as zip_ref:
+            zip_ref.extractall(dataset_dir)
+        print("Extraction complete.")
+
+    if os.path.isfile(images_zip_path):
+        # Delete the zip file
+        os.remove(images_zip_path)
+
+    return images_dir
+
+
+def _download_emoji_data():
+    fo_dir = fo.config.default_dataset_dir
+    dataset_dir = os.path.join(fo_dir, "emojis")
+    data_dir = os.path.join(dataset_dir, "emojis")
+    dataset_data_path = os.path.join(dataset_dir, "emojis.zip")
+
+    if not os.path.exists(data_dir):
+        # Download the file
+        etaw.download_google_drive_file(
+            "1Qv3I4Yx4gHgR8XT1_STJ878F-NSF5g-i", path=dataset_data_path
+        )
+        print("Download complete.")
+
+    if os.path.isfile(dataset_data_path):
+        print(f"Extracting descriptions to {dataset_dir}...")
+        import zipfile
+
+        with zipfile.ZipFile(dataset_data_path, "r") as zip_ref:
+            zip_ref.extractall(dataset_dir)
+        print("Extraction complete.")
+
+        # Delete the zip file
+        os.remove(dataset_data_path)
+
+    return data_dir
+
+
+class CreateEmojiDataset(foo.Operator):
+    @property
+    def config(self):
+        _config = foo.OperatorConfig(
+            name="create_emoji_dataset",
+            label="Emoji Dataset: create a dataset of emojis",
+            dynamic=True,
+        )
+        _config.icon = "/assets/icon.svg"
+        return _config
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        form_view = types.View(
+            label="Create Emoji Dataset",
+            description=("Create a dataset of emojis"),
+        )
+        return types.Property(inputs, view=form_view)
+
+    def execute(self, ctx):
+        if "emojis" in fo.list_datasets():
+            return
+
+        images_dir = _download_emoji_images()
+        data_dir = _download_emoji_data()
+
+        emoji_dataset = fo.Dataset.from_dir(
+            data_dir,
+            dataset_type=fo.types.FiftyOneDataset,
+            name="emojis",
+            persistent=True,
+        )
+        for sample in emoji_dataset.iter_samples(autosave=True):
+            sample.filepath = os.path.join(images_dir, sample.filename)
+
+        ctx.trigger("reload_dataset")
+
+
 def register(plugin):
     plugin.register(SearchEmojis)
     plugin.register(CopyEmojiToClipboard)
+    plugin.register(CreateEmojiDataset)

@@ -49,8 +49,10 @@ fiftyone plugins requirements @jacobmarks/emoji_search --install
 
 ### `download_emoji_dataset`
 
-This operator will download the emoji dataset and create a FiftyOne `Dataset`
-from it. You can then use the other operators on this dataset.
+This operator will download the emoji dataset images and metadata, and create a
+FiftyOne `Dataset` from them. You can then use the other operators on this dataset.
+This dataset will be called `emoji`, and will be saved in your default dataset directory,
+which you can check with `fiftyone.config.default_dataset_dir`.
 
 ### `search_emojis`
 
