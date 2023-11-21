@@ -39,25 +39,71 @@ def _get_basic_search_results(prompt, dataset):
     return basic_search_results
 
 
+def _reciprocal_rank(rank):
+    return 1 / rank
+
+
+def _get_ranks(sids):
+    return {sid: i + 1 for i, sid in enumerate(sids)}
+
+
+def _fuse_reciprocal_ranks(ranks1, ranks2):
+    all_rank_ids = set(ranks1.keys()).union(set(ranks2.keys()))
+    fused_ranks = {}
+
+    for rid in list(all_rank_ids):
+        if rid not in ranks1:
+            ranks1[rid] = len(all_rank_ids) + 1
+        if rid not in ranks2:
+            ranks2[rid] = len(all_rank_ids) + 1
+
+    for rid in all_rank_ids:
+        rank1 = ranks1[rid]
+        rank2 = ranks2[rid]
+        reciprocal_rank1 = _reciprocal_rank(rank1)
+        reciprocal_rank2 = _reciprocal_rank(rank2)
+        fused_rank = reciprocal_rank1 + reciprocal_rank2
+        fused_ranks[rid] = fused_rank
+    return sorted(fused_ranks, key=fused_ranks.get, reverse=True)
+
+
 def _refine_search_results(prompt, dataset, subview):
     threshold = 0.1
     cross_encoder = CrossEncoder(cross_encoder_name)
-    corpus = subview.values("description_gpt4")
     ids = subview.values("id")
 
-    sentence_pairs = [
-        [prompt, description.replace("A photo of", "")]
-        for description in corpus
-    ]
-    scores = cross_encoder.predict(sentence_pairs)
-    sim_scores_argsort = reversed(np.argsort(scores))
+    desc_corpus = subview.values("description_gpt4")
+    name_corpus = subview.values("name")
 
-    sorted_ids = [ids[i] for i in sim_scores_argsort if scores[i] > threshold]
+    desc_sentence_pairs = [
+        [prompt, description.replace("A photo of", "")]
+        for description in desc_corpus
+    ]
+    name_sentence_pairs = [[prompt, name] for name in name_corpus]
+
+    desc_scores = cross_encoder.predict(desc_sentence_pairs)
+    name_scores = cross_encoder.predict(name_sentence_pairs)
+
+    desc_scores_argsort = reversed(np.argsort(desc_scores))
+    name_scores_argsort = reversed(np.argsort(name_scores))
+
+    desc_refined_ids = [
+        ids[i] for i in desc_scores_argsort if desc_scores[i] > threshold
+    ]
+
+    name_refined_ids = [
+        ids[i] for i in name_scores_argsort if name_scores[i] > threshold
+    ]
+
+    desc_ranks = _get_ranks(desc_refined_ids)
+    name_ranks = _get_ranks(name_refined_ids)
+
+    fused_ranks = _fuse_reciprocal_ranks(desc_ranks, name_ranks)[:10]
 
     return (
-        dataset.select(sorted_ids, ordered=True)
-        if sorted_ids
-        else dataset.select(ids[:10], ordered=True)
+        dataset.select(fused_ranks, ordered=True)
+        if fused_ranks
+        else dataset.select(desc_refined_ids[:10], ordered=True)
     )
 
 
