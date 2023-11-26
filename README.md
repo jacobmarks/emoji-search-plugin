@@ -1,5 +1,7 @@
 ## Emoji Search Plugin
 
+![emoji_search_and_copy](https://github.com/jacobmarks/emoji-search-plugin/assets/12500356/a8fc3680-7df0-463c-9e5a-d70e773d5c29)
+
 This plugin allows you to search for emojis based on the text you input. The
 operators will only appear in menus in the FiftyOne App if `emoji` is in the
 dataset's name (case-insensitive).
@@ -67,11 +69,16 @@ which you can check with `fiftyone.config.default_dataset_dir`.
 
 ### `search_emojis`
 
+![emoji_search_ui_sizzle](https://github.com/jacobmarks/emoji-search-plugin/assets/12500356/0d1c177a-e3ef-4eb4-af43-2d7fde9fbe65)
+
+
 This operator will semantically search for emojis based on the input text. It
 will return a subset of the emojis in the dataset that are most semantically
 similar to the input text, above a certain threshold.
 
 ### `copy_emoji_to_clipboard`
+
+![emoji_copy](https://github.com/jacobmarks/emoji-search-plugin/assets/12500356/fdc55095-3490-4a41-90c6-90176ad09602)
 
 This operator will copy the emoji to the clipboard!
 
