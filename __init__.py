@@ -34,50 +34,52 @@ def serialize_view(view):
 
 def _get_basic_search_results(prompt, dataset):
     model = foz.load_zoo_model(embedding_model_name)
-    query_embedding = model.embed_prompt(f"A photo of {prompt}")
-    basic_search_results = dataset.sort_by_similarity(query_embedding, k=30)
-    return basic_search_results
+    query_embedding = model.embed_prompt(f"{prompt}")
+    basic_search_results = dataset.sort_by_similarity(
+        query_embedding, k=100, brain_key="img_sim", dist_field="img_dist"
+    )
+    basic_search_results = basic_search_results.match(F("img_dist") < 0.9)
+    ordered_name_sim_ids = basic_search_results.sort_by_similarity(
+        query_embedding, brain_key="name_sim"
+    ).values("id")
+    return basic_search_results, ordered_name_sim_ids
 
 
 def _reciprocal_rank(rank):
-    return 1 / rank
+    return 1.0 / rank if rank > 0 else 0
 
 
 def _get_ranks(sids):
     return {sid: i + 1 for i, sid in enumerate(sids)}
 
 
-def _fuse_reciprocal_ranks(ranks1, ranks2):
-    all_rank_ids = set(ranks1.keys()).union(set(ranks2.keys()))
-    fused_ranks = {}
+def _fuse_reciprocal_ranks(rank_lists):
+    all_rank_ids = set()
+    for ranks in rank_lists:
+        all_rank_ids.update(ranks.keys())
 
-    for rid in list(all_rank_ids):
-        if rid not in ranks1:
-            ranks1[rid] = len(all_rank_ids) + 1
-        if rid not in ranks2:
-            ranks2[rid] = len(all_rank_ids) + 1
+    max_rank = len(all_rank_ids) + 1
+    fused_ranks = {rid: 0 for rid in all_rank_ids}
 
-    for rid in all_rank_ids:
-        rank1 = ranks1[rid]
-        rank2 = ranks2[rid]
-        reciprocal_rank1 = _reciprocal_rank(rank1)
-        reciprocal_rank2 = _reciprocal_rank(rank2)
-        fused_rank = reciprocal_rank1 + reciprocal_rank2
-        fused_ranks[rid] = fused_rank
+    for ranks in rank_lists:
+        for rid in all_rank_ids:
+            rank = ranks.get(rid, max_rank)
+            fused_ranks[rid] += _reciprocal_rank(rank)
+
     return sorted(fused_ranks, key=fused_ranks.get, reverse=True)
 
 
-def _refine_search_results(prompt, dataset, subview):
-    threshold = 0.1
+def _refine_search_results(prompt, dataset, subview, ordered_name_sim_ids):
+    threshold = 0.15
+
     cross_encoder = CrossEncoder(cross_encoder_name)
     ids = subview.values("id")
 
-    desc_corpus = subview.values("description_gpt4")
+    desc_corpus = subview.values("description")
     name_corpus = subview.values("name")
 
     desc_sentence_pairs = [
-        [prompt, description.replace("A photo of", "")]
-        for description in desc_corpus
+        [prompt, description] for description in desc_corpus
     ]
     name_sentence_pairs = [[prompt, name] for name in name_corpus]
 
@@ -97,8 +99,12 @@ def _refine_search_results(prompt, dataset, subview):
 
     desc_ranks = _get_ranks(desc_refined_ids)
     name_ranks = _get_ranks(name_refined_ids)
+    img_sim_ranks = _get_ranks(ids)
+    name_sim_ranks = _get_ranks(ordered_name_sim_ids)
 
-    fused_ranks = _fuse_reciprocal_ranks(desc_ranks, name_ranks)[:10]
+    ranks_list = [desc_ranks, name_ranks, img_sim_ranks, name_sim_ranks]
+
+    fused_ranks = _fuse_reciprocal_ranks(ranks_list)[:20]
 
     return (
         dataset.select(fused_ranks, ordered=True)
@@ -158,8 +164,12 @@ class SearchEmojis(foo.Operator):
     def execute(self, ctx):
         dataset = ctx.dataset
         prompt = ctx.params.get("prompt", None)
-        basic_view = _get_basic_search_results(prompt, dataset)
-        view = _refine_search_results(prompt, dataset, basic_view)
+        basic_view, ordered_name_sim_ids = _get_basic_search_results(
+            prompt, dataset
+        )
+        view = _refine_search_results(
+            prompt, dataset, basic_view, ordered_name_sim_ids
+        )
 
         ctx.trigger(
             "set_view",
@@ -262,7 +272,7 @@ def _download_emoji_data():
     if not os.path.exists(data_dir):
         # Download the file
         etaw.download_google_drive_file(
-            "1Qv3I4Yx4gHgR8XT1_STJ878F-NSF5g-i", path=dataset_data_path
+            "1x-QTsE3Hpxtdh-wSITluR40_7S25UmW-", path=dataset_data_path
         )
         print("Download complete.")
 
@@ -295,7 +305,9 @@ class CreateEmojiDataset(foo.Operator):
         inputs = types.Object()
         form_view = types.View(
             label="Create Emoji Dataset",
-            description=("Create a dataset of emojis"),
+            description=(
+                "Create a dataset of emojis. This may take a minute or two."
+            ),
         )
         return types.Property(inputs, view=form_view)
 
