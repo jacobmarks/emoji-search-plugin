@@ -60,7 +60,7 @@ fiftyone plugins requirements @jacobmarks/emoji_search --install
 
 ## Operators
 
-### `download_emoji_dataset`
+### `create_emoji_dataset`
 
 This operator will download the emoji dataset images and metadata, and create a
 FiftyOne `Dataset` from them. You can then use the other operators on this dataset.
@@ -70,7 +70,6 @@ which you can check with `fiftyone.config.default_dataset_dir`.
 ### `search_emojis`
 
 ![emoji_search_ui_sizzle](https://github.com/jacobmarks/emoji-search-plugin/assets/12500356/0d1c177a-e3ef-4eb4-af43-2d7fde9fbe65)
-
 
 This operator will semantically search for emojis based on the input text. It
 will return a subset of the emojis in the dataset that are most semantically
