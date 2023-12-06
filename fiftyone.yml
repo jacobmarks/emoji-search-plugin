@@ -1,7 +1,7 @@
 fiftyone:
   version: ">=0.23.0"
 name: "@jacobmarks/emoji_search"
-version: "1.0.3"
+version: "1.0.4"
 description: "Semantically search emojis"
 url: "https://github.com/jacobmarks/emoji-search-plugin"
 operators:

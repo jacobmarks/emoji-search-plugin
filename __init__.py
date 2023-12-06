@@ -28,6 +28,14 @@ cross_encoder_name = "cross-encoder/stsb-distilroberta-base"
 embedding_model_name = "clip-vit-base32-torch"
 
 
+def _is_teams_deployment():
+    val = os.environ.get("FIFTYONE_INTERNAL_SERVICE", "")
+    return val.lower() in ("true", "1")
+
+
+TEAMS_DEPLOYMENT = _is_teams_deployment()
+
+
 def serialize_view(view):
     return json.loads(json_util.dumps(view._serialize()))
 
@@ -202,7 +210,7 @@ class CopyEmojiToClipboard(foo.Operator):
         return types.Property(inputs, view=form_view)
 
     def resolve_placement(self, ctx):
-        if "emoji" in ctx.dataset.name.lower():
+        if "emoji" in ctx.dataset.name.lower() and not TEAMS_DEPLOYMENT:
             return types.Placement(
                 types.Places.SAMPLES_VIEWER_ACTIONS,
                 types.Button(
@@ -222,7 +230,10 @@ class CopyEmojiToClipboard(foo.Operator):
         sample_id = ctx.current_sample
         sample = ctx.dataset[sample_id]
         emoji = _get_emoji_from_sample(sample)
-        pyperclip.copy(emoji)
+        try:
+            pyperclip.copy(emoji)
+        except:
+            pass
         return {"emoji": emoji}
 
 
