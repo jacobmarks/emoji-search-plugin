@@ -6,8 +6,6 @@
 """
 
 
-from bson import json_util
-import json
 import numpy as np
 import os
 import pyperclip
@@ -34,10 +32,6 @@ def _is_teams_deployment():
 
 
 TEAMS_DEPLOYMENT = _is_teams_deployment()
-
-
-def serialize_view(view):
-    return json.loads(json_util.dumps(view._serialize()))
 
 
 def _get_basic_search_results(prompt, dataset):
@@ -179,10 +173,7 @@ class SearchEmojis(foo.Operator):
             prompt, dataset, basic_view, ordered_name_sim_ids
         )
 
-        ctx.trigger(
-            "set_view",
-            params=dict(view=serialize_view(view)),
-        )
+        ctx.ops.set_view(view=view)
 
 
 class CopyEmojiToClipboard(foo.Operator):
@@ -338,7 +329,7 @@ class CreateEmojiDataset(foo.Operator):
         for sample in emoji_dataset.iter_samples(autosave=True):
             sample.filepath = os.path.join(images_dir, sample.filename)
 
-        ctx.trigger("reload_dataset")
+        ctx.ops.reload_dataset()
 
 
 def register(plugin):
